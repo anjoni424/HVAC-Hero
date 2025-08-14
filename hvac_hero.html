@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>HVAC Hero — Mini Game</title>
+  <style>
+    :root{
+      --bg:#0f172a;
+      --panel:#111827;
+      --accent:#34d399;
+      --accent2:#60a5fa;
+      --danger:#ef4444;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --card:#0b1220;
+    }
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,sans-serif}
+    body{
+      margin:0;background:linear-gradient(180deg,#0b1220 0%, #0f172a 100%);
+      color:var(--text);
+      min-height:100dvh; display:flex; flex-direction:column; align-items:center;
+    }
+    header{
+      width:100%; padding:12px 16px; position:sticky; top:0;
+      background:rgba(11,18,32,0.9); backdrop-filter: blur(6px);
+      border-bottom:1px solid rgba(255,255,255,0.05);
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+    }
+    .title{font-weight:800; letter-spacing:0.5px;}
+    .meta{display:flex; gap:10px; font-size:14px; color:var(--muted)}
+    .chip{background:#0a1222; border:1px solid rgba(255,255,255,0.06); padding:6px 10px; border-radius:999px; display:flex; align-items:center; gap:6px;}
+    .chip b{color:var(--text)}
+    main{width:min(960px,100%); padding:16px; display:flex; flex-direction:column; gap:12px;}
+    .grid{display:grid; grid-template-columns:1fr; gap:12px;}
+    @media (min-width:700px){ .grid{ grid-template-columns: 1fr 330px; } }
+    .rooms{display:grid; grid-template-columns:1fr; gap:12px;}
+    @media (min-width:520px){ .rooms{ grid-template-columns: 1fr 1fr 1fr; } }
+    .card{
+      background:linear-gradient(180deg, #0d162a 0%, #0b1220 55%);
+      border:1px solid rgba(255,255,255,0.06);
+      border-radius:14px; padding:12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+    }
+    .room{ position:relative; overflow:hidden}
+    .room h3{margin:0 0 6px 0; font-size:16px; font-weight:700}
+    .thermo{
+      height:10px; background:#0a1426; border-radius:999px; overflow:hidden; border:1px solid rgba(255,255,255,0.06);
+      margin:10px 0 6px 0;
+    }
+    .thermo > div{ height:100%; width:50%; background:linear-gradient(90deg,var(--accent2),var(--accent));}
+    .temp-row{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+    .temp{font-size:28px; font-weight:800; letter-spacing:0.5px}
+    .comfort{font-size:12px; color:var(--muted)}
+    .btn{
+      appearance:none; border:none; outline:none; background:linear-gradient(180deg,#0f1b33,#0b1324);
+      color:var(--text); border-radius:12px; padding:12px 14px; font-weight:700;
+      border:1px solid rgba(255,255,255,0.08);
+      width:100%;
+    }
+    .btn:active{ transform: translateY(1px);}
+    .btn-row{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;}
+    .btn.small{padding:8px 10px; font-weight:700;}
+    .controls .row{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;}
+    .controls .row.wide{ grid-template-columns: 1fr 1fr 1fr; }
+    .controls h4{margin:0 0 6px 0}
+    .muted{color:var(--muted)}
+    .panel{padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,0.06); background:linear-gradient(180deg,#0e172a,#0b1220);}
+    .big{font-size:22px; font-weight:800}
+    .slider{width:100%}
+    .danger{color:#fecaca}
+    footer{padding:18px; font-size:12px; color:var(--muted)}
+    .help{
+      position:fixed; inset:0; background:rgba(10,12,16,0.65); backdrop-filter: blur(6px);
+      display:none; align-items:center; justify-content:center; padding:16px; z-index:999;
+    }
+    .help .modal{max-width:720px; width:100%;}
+    .close-x{
+      position:absolute; top:12px; right:12px; font-weight:900; font-size:18px; background:transparent; border:none; color:var(--muted);
+    }
+    .tag{font-size:11px; color:var(--muted)}
+    .ok{background:linear-gradient(180deg,#1f8b59,#176b45); border-color:rgba(255,255,255,0.12)}
+    .accent{background:linear-gradient(180deg,#1b2b4c,#14223c)}
+    .row-flex{display:flex; align-items:center; justify-content:space-between; gap:8px}
+    .score{font-size:24px; font-weight:800}
+    .progress{height:8px; background:#0a1426; border:1px solid rgba(255,255,255,0.06); border-radius:999px; overflow:hidden}
+    .progress > div{height:100%; width:0%; background:linear-gradient(90deg,#60a5fa,#34d399)}
+    .note{font-size:12px; color:var(--muted); margin-top:8px}
+    .badge{font-size:11px; padding:4px 8px; border:1px solid rgba(255,255,255,0.08); border-radius:999px; color:var(--muted)}
+    .mode-cool .badge-mode{color:#bfdbfe}
+    .mode-heat .badge-mode{color:#fecaca}
+  </style>
+</head>
+<body class="mode-auto">
+  <header>
+    <div class="title">❄️🔥 HVAC Hero</div>
+    <div class="meta">
+      <div class="chip"><span>⏱️</span><b id="time">02:00</b><span class="tag">Timer</span></div>
+      <div class="chip"><span>🌡️</span><b id="outside">Outside --°F</b></div>
+      <div class="chip badge-mode"><span>⚙️</span><b id="modeChip">AUTO</b></div>
+    </div>
+    <button class="btn small" id="helpBtn" aria-label="How to Play">How to Play</button>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <div class="row-flex">
+        <div>
+          <div class="badge" id="dayType">Day: —</div>
+          <div class="note">Keep rooms comfy (68–74°F) while using the least energy. Score = Comfort − Energy.</div>
+        </div>
+        <div class="score" id="score">Score: 0</div>
+      </div>
+
+      <div class="rooms" id="rooms"></div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="row-flex">
+          <div>
+            <h4 style="margin:0 0 2px 0">Thermostat</h4>
+            <div class="muted">Tap +/− to adjust setpoint</div>
+          </div>
+          <div class="big" id="setpoint">72°F</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="minus">−</button>
+          <button class="btn" id="plus">+</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn accent" id="modeBtn" aria-label="Toggle Mode">Mode: AUTO</button>
+          <button class="btn ok" id="fanBtn" aria-label="Toggle Fan">Fan: AUTO</button>
+        </div>
+        <div class="row wide" style="margin-top:10px">
+          <button class="btn" id="startBtn">▶️ Start</button>
+          <button class="btn" id="pauseBtn">⏸️ Pause</button>
+          <button class="btn" id="resetBtn">🔁 Reset</button>
+        </div>
+        <div class="row-flex" style="margin-top:10px">
+          <div>Progress</div>
+          <div class="muted">High Score: <span id="hiscore">0</span></div>
+        </div>
+        <div class="progress"><div id="progressBar"></div></div>
+      </div>
+    </section>
+
+    <aside class="card controls">
+      <h4>System Readouts</h4>
+      <div class="panel">
+        <div class="row-flex"><div>Compressor</div><div id="compressorState">OFF</div></div>
+        <div class="row-flex"><div>Supply Air</div><div id="supplyTemp">—</div></div>
+        <div class="row-flex"><div>Energy Used</div><div id="energy">0</div></div>
+        <div class="row-flex"><div>Comfort Time</div><div id="comfort">0s</div></div>
+      </div>
+      <h4 style="margin-top:12px">Hints</h4>
+      <ul class="muted" style="margin-top:6px; padding-left:18px">
+        <li>Close vents in empty rooms to save energy.</li>
+        <li>Use AUTO mode to let the system switch heat/cool.</li>
+        <li>Hot day? Lower the setpoint early to get ahead.</li>
+      </ul>
+    </aside>
+  </main>
+
+  <footer>
+    Built for mobile Safari. Add to Home Screen for a more app-like feel. No data leaves your device.
+  </footer>
+
+  <div class="help" id="help">
+    <div class="card modal">
+      <button class="close-x" id="closeHelp">✕</button>
+      <h2 style="margin-top:0">How to Play</h2>
+      <p>Your job is to keep three rooms comfortable with minimal energy.</p>
+      <ol>
+        <li><b>Goal:</b> Keep rooms between <b>68–74°F</b>. You gain points per comfortable second, and lose points for energy use.</li>
+        <li><b>Controls:</b> Adjust the <b>thermostat</b>, toggle <b>mode</b> (HEAT/COOL/AUTO), choose <b>fan</b> (AUTO/ON), and <b>open/close vents</b> per room.</li>
+        <li><b>Simulation:</b> Rooms heat/cool toward the <i>supply air</i> temperature when vents are open. Otherwise, they drift toward the <i>outside</i> temperature.</li>
+        <li><b>Win:</b> Finish with a positive score. Beat your <b>High Score</b>!</li>
+      </ol>
+      <p class="muted">Tip: On a hot day, prioritize occupied rooms and close vents elsewhere.</p>
+      <div class="row-flex">
+        <button class="btn ok" id="helpPlay">Let’s Play</button>
+        <button class="btn" id="helpClose2">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // --- Game State ---
+  const roomsData = [
+    { name: 'Living Room', temp: 74, ventOpen: true, occupied: true },
+    { name: 'Bedroom',     temp: 74, ventOpen: true, occupied: false },
+    { name: 'Office',      temp: 74, ventOpen: true, occupied: false },
+  ];
+
+  let outsideTemp = 90; // will vary by day type
+  let dayType = 'Hot Day';
+  let setpoint = 72;
+  let mode = 'AUTO'; // 'HEAT' | 'COOL' | 'AUTO'
+  let fan = 'AUTO'; // 'AUTO' | 'ON'
+  let running = false;
+  let seconds = 120; // 2-minute round
+  let tickHandle = null;
+  let comfortSeconds = 0;
+  let energyUnits = 0;
+  let compressorOn = false;
+  let supplyAir = null;
+  let progressEl = document.getElementById('progressBar');
+
+  // UI Refs
+  const roomsEl = document.getElementById('rooms');
+  const timeEl = document.getElementById('time');
+  const outsideEl = document.getElementById('outside');
+  const modeChip = document.getElementById('modeChip');
+  const setpointEl = document.getElementById('setpoint');
+  const scoreEl = document.getElementById('score');
+  const compressorState = document.getElementById('compressorState');
+  const supplyTempEl = document.getElementById('supplyTemp');
+  const energyEl = document.getElementById('energy');
+  const comfortEl = document.getElementById('comfort');
+  const hiscoreEl = document.getElementById('hiscore');
+  const dayTypeEl = document.getElementById('dayType');
+
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const minusBtn = document.getElementById('minus');
+  const plusBtn = document.getElementById('plus');
+  const modeBtn = document.getElementById('modeBtn');
+  const fanBtn = document.getElementById('fanBtn');
+
+  const help = document.getElementById('help');
+  const helpBtn = document.getElementById('helpBtn');
+  const helpClose1 = document.getElementById('closeHelp');
+  const helpPlay = document.getElementById('helpPlay');
+  const helpClose2 = document.getElementById('helpClose2');
+
+  function fmt(n){ return Math.round(n); }
+  function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
+
+  function initDay(){
+    // Randomize a "Hot" or "Cold" day
+    if (Math.random() < 0.5){
+      dayType = 'Hot Day';
+      outsideTemp = 86 + Math.random()*8; // 86–94
+    } else {
+      dayType = 'Cold Day';
+      outsideTemp = 28 + Math.random()*10; // 28–38
+    }
+    dayTypeEl.textContent = 'Day: ' + dayType;
+    roomsData.forEach(r => r.temp = setpoint + ((Math.random()*4)-2)); // start near setpoint
+    roomsData[0].occupied = true;
+    roomsData[1].occupied = Math.random()<0.5;
+    roomsData[2].occupied = Math.random()<0.5;
+  }
+
+  function drawRooms(){
+    roomsEl.innerHTML = '';
+    roomsData.forEach((r,idx)=>{
+      const inComfort = r.temp>=68 && r.temp<=74;
+      const card = document.createElement('div');
+      card.className = 'card room';
+      card.innerHTML = `
+        <h3>${r.name} ${r.occupied? '🧑‍🏫' : '🚪'}</h3>
+        <div class="thermo"><div style="width:${clamp(((r.temp-50)/50)*100,0,100)}%"></div></div>
+        <div class="temp-row">
+          <div class="temp">${fmt(r.temp)}°F</div>
+          <div class="comfort">${inComfort? 'Comfortable' : (r.temp<68?'Too Cold':'Too Hot')}</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn" data-action="toggle" data-idx="${idx}">${r.ventOpen? 'Close Vent' : 'Open Vent'}</button>
+          <button class="btn" data-action="occupy" data-idx="${idx}">${r.occupied? 'Mark Empty' : 'Mark Occupied'}</button>
+        </div>
+      `;
+      roomsEl.appendChild(card);
+    });
+  }
+
+  function updateHeader(){
+    outsideEl.textContent = 'Outside ' + fmt(outsideTemp) + '°F';
+    setpointEl.textContent = fmt(setpoint) + '°F';
+    modeChip.textContent = mode;
+    document.body.classList.remove('mode-cool','mode-heat');
+    const avg = roomsData.reduce((a,b)=>a+b.temp,0)/roomsData.length;
+    let activeMode = null;
+    if(mode==='AUTO'){
+      if(avg > setpoint+1) activeMode = 'COOL';
+      else if(avg < setpoint-1) activeMode = 'HEAT';
+      else activeMode = 'IDLE';
+    } else activeMode = mode;
+
+    compressorOn = (activeMode==='COOL' || activeMode==='HEAT');
+    supplyAir = null;
+    if(activeMode==='COOL'){ supplyAir = 55; document.body.classList.add('mode-cool'); }
+    if(activeMode==='HEAT'){ supplyAir = 105; document.body.classList.add('mode-heat'); }
+    compressorState.textContent = compressorOn ? (activeMode==='COOL'?'COOLING':'HEATING') : 'IDLE';
+    supplyTempEl.textContent = supplyAir? (fmt(supplyAir)+'°F') : '—';
+  }
+
+  function simulateOneSecond(){
+    // Outside temperature gentle drift
+    const drift = (Math.sin((Date.now()/1000)%Math.PI)* (dayType==='Hot Day'? 0.05 : 0.03));
+    outsideTemp = clamp(outsideTemp + drift, dayType==='Hot Day'? 82 : 24, dayType==='Hot Day'? 98 : 42);
+    // Determine active mode same logic as header
+    const avg = roomsData.reduce((a,b)=>a+b.temp,0)/roomsData.length;
+    let activeMode = mode;
+    if(mode==='AUTO'){
+      if(avg > setpoint+1) activeMode = 'COOL';
+      else if(avg < setpoint-1) activeMode = 'HEAT';
+      else activeMode = 'IDLE';
+    }
+    const hvacActive = (activeMode==='COOL' || activeMode==='HEAT');
+    const supply = activeMode==='COOL'? 55 : (activeMode==='HEAT'? 105 : null);
+    // Fan determines baseline circulation effect
+    const fanFactor = (fan==='ON') ? 0.2 : 0;
+    // For each room, move temperature
+    roomsData.forEach(r=>{
+      if(hvacActive && r.ventOpen){
+        // Move toward supply temp (strong pull), plus mild drift toward outside
+        const towardSupply = (supply - r.temp) * 0.10;
+        const towardOutside = (outsideTemp - r.temp) * 0.01;
+        const fanMix = (supply && fan==='ON') ? (supply - r.temp) * 0.02 : 0;
+        r.temp += towardSupply + towardOutside + fanMix;
+      } else {
+        // No supply — drift toward outside, a bit faster if vent closed (less mixing)
+        const rate = r.ventOpen ? 0.012 : 0.018;
+        const towardOutside = (outsideTemp - r.temp) * rate;
+        r.temp += towardOutside + fanFactor*((supply??r.temp) - r.temp)*0.01;
+      }
+    });
+    // Energy use: base draw if active + extra per open vent (airflow cost)
+    if(hvacActive){
+      const openVents = roomsData.filter(r=>r.ventOpen).length;
+      // Units per second ~ compressor + fan cost
+      energyUnits += 1.0 + openVents*0.25 + (fan==='ON'?0.2:0);
+    } else if (fan==='ON'){
+      energyUnits += 0.15; // fan only
+    }
+    // Comfort seconds: count each room in band 68–74
+    roomsData.forEach(r=>{ if(r.temp>=68 && r.temp<=74) comfortSeconds += 1/roomsData.length; });
+    // Update UI elements dependent on dynamics
+    updateHeader();
+    drawRooms();
+  }
+
+  function updateTimerAndScore(){
+    seconds = Math.max(0, seconds-1);
+    timeEl.textContent = new Date(seconds*1000).toISOString().substr(14,5);
+    comfortEl.textContent = fmt(comfortSeconds) + 's';
+    energyEl.textContent = fmt(energyUnits);
+    // Score = comfortSeconds − 0.5*energyUnits, rounded
+    const score = Math.round(comfortSeconds - 0.5*energyUnits);
+    scoreEl.textContent = 'Score: ' + score;
+    // Progress bar
+    const pct = (1 - (seconds/120))*100;
+    progressEl.style.width = pct + '%';
+    if(seconds<=0){
+      stopGame();
+      // High score
+      const hi = Number(localStorage.getItem('hvacHeroHighScore')||'0');
+      if(score > hi){
+        localStorage.setItem('hvacHeroHighScore', String(score));
+      }
+      hiscoreEl.textContent = localStorage.getItem('hvacHeroHighScore')||'0';
+      alert('Time! Your score: '+score+(score>hi?' (New High Score!)':''));
+    }
+  }
+
+  function startGame(){
+    if(running) return;
+    running = true;
+    tickHandle = setInterval(()=>{
+      simulateOneSecond();
+      updateTimerAndScore();
+    },1000);
+  }
+  function pauseGame(){
+    if(!running) return;
+    running = false;
+    clearInterval(tickHandle);
+    tickHandle = null;
+  }
+  function stopGame(){ pauseGame(); }
+  function resetGame(){
+    pauseGame();
+    seconds = 120;
+    comfortSeconds = 0;
+    energyUnits = 0;
+    setpoint = 72;
+    mode = 'AUTO';
+    fan = 'AUTO';
+    initDay();
+    updateHeader();
+    drawRooms();
+    updateTimerAndScore(); // to refresh UI
+    document.getElementById('modeBtn').textContent = 'Mode: ' + mode;
+    document.getElementById('fanBtn').textContent = 'Fan: ' + fan;
+    progressEl.style.width = '0%';
+  }
+
+  // --- Event Wiring ---
+  roomsEl.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    const idx = Number(btn.getAttribute('data-idx'));
+    const action = btn.getAttribute('data-action');
+    const r = roomsData[idx];
+    if(action==='toggle'){ r.ventOpen = !r.ventOpen; }
+    if(action==='occupy'){ r.occupied = !r.occupied; }
+    drawRooms();
+  }, {passive:true});
+
+  // Touch-friendly repeat for +/−
+  let repeatInterval = null;
+  function startRepeat(fn){
+    fn();
+    repeatInterval = setInterval(fn, 150);
+  }
+  function endRepeat(){ clearInterval(repeatInterval); repeatInterval = null; }
+
+  function incSetpoint(){ setpoint = clamp(setpoint+1, 55, 85); updateHeader(); setpointEl.textContent = fmt(setpoint)+'°F'; }
+  function decSetpoint(){ setpoint = clamp(setpoint-1, 55, 85); updateHeader(); setpointEl.textContent = fmt(setpoint)+'°F'; }
+
+  ['mousedown','touchstart'].forEach(ev=>{
+    plusBtn.addEventListener(ev, ()=>startRepeat(incSetpoint), {passive:true});
+    minusBtn.addEventListener(ev, ()=>startRepeat(decSetpoint), {passive:true});
+  });
+  ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev=>{
+    plusBtn.addEventListener(ev, endRepeat, {passive:true});
+    minusBtn.addEventListener(ev, endRepeat, {passive:true});
+  });
+
+  modeBtn.addEventListener('click', ()=>{
+    if(mode==='AUTO') mode='COOL';
+    else if(mode==='COOL') mode='HEAT';
+    else mode='AUTO';
+    modeBtn.textContent = 'Mode: ' + mode;
+    updateHeader();
+  }, {passive:true});
+
+  fanBtn.addEventListener('click', ()=>{
+    fan = (fan==='AUTO')?'ON':'AUTO';
+    fanBtn.textContent = 'Fan: ' + fan;
+    updateHeader();
+  }, {passive:true});
+
+  startBtn.addEventListener('click', startGame, {passive:true});
+  pauseBtn.addEventListener('click', pauseGame, {passive:true});
+  resetBtn.addEventListener('click', resetGame, {passive:true});
+
+  // Help modal
+  function openHelp(){ help.style.display='flex'; }
+  function closeHelp(){ help.style.display='none'; }
+  helpBtn.addEventListener('click', openHelp, {passive:true});
+  helpClose1.addEventListener('click', closeHelp, {passive:true});
+  helpClose2.addEventListener('click', closeHelp, {passive:true});
+  helpPlay.addEventListener('click', ()=>{ closeHelp(); resetGame(); startGame(); }, {passive:true});
+
+  // Start
+  (function boot(){
+    const hi = Number(localStorage.getItem('hvacHeroHighScore')||'0');
+    hiscoreEl.textContent = String(hi);
+    initDay();
+    updateHeader();
+    drawRooms();
+    updateTimerAndScore();
+    openHelp();
+  })();
+  </script>
+</body>
+</html>
